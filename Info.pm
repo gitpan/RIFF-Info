@@ -4,18 +4,18 @@ require 5.005_62;
 use strict;
 use warnings;
 use vars qw($VERSION);
-$VERSION = '1.01';
+$VERSION = '1.02';
 
 #is this reasonable?  big fudge factor here.
 use constant MAX_HEADER_BYTES => 10240;
 
 sub new {
   my $class = shift;
-  my $file  = shift;
-  my $header_size = shift || MAX_HEADER_BYTES;
+  my %param = @_;
+  my $header_size = $param{-headersize} || MAX_HEADER_BYTES;
 
   my $self = bless {}, $class;
-  $self->handle($file);
+  $self->handle($param{-file});
   $self->header_size($header_size);
 
   return $self;
@@ -179,8 +179,8 @@ and more!
 
   my $video;
 
-  $video = RIFF::Info->new($filename);             #like this
-  $video = RIFF::Info->new($filename,$headersize); #or this
+  $video = RIFF::Info->new(-file=>$filename);                          #like this
+  $video = RIFF::Info->new(-file=>$filename,-headersize=>$headersize); #or this
 
   $self->probe;                           #parse the video file
   $video->vcodec;                         #video codec
@@ -191,9 +191,10 @@ and more!
 
 =head2 METHODS
 
-RIFF::Info has one constructor, new().  It must be called with
-a filename, and an optional header size (see BUGS).  Returns a 
-RIFF::Info object if the file was opened successfully.
+RIFF::Info has one constructor, new().  It is called as:
+  -file       => $filename,   #your RIFF file
+  -headersize => $headersize  #optional RIFF header size to parse
+Returns a RIFF::Info object if the file was opened successfully.
 
 Call probe() on the RIFF::Info object to parse the file.  This
 does a series of sysread()s on the file to figure out what the
@@ -219,7 +220,7 @@ your file:
  vstreams()          number of video streams
  width()             frame height in pixels
 
-=head1 BUGS (AKA FEATURES)
+=head1 BUGS
 
 The default header_size() (10K) may not be large enough to 
 successfully extract the video/audio attributes for all RIFF 

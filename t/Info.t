@@ -17,7 +17,7 @@ BEGIN {
 use RIFF::Info;
 ok(1);
 
-my $file = RIFF::Info->new('eg/simpson.avi',10240);
+my $file = RIFF::Info->new(-file=>'eg/simpson.avi',-headersize=>10240);
 ok $file;
 ok $file->probe;
 ok $file->achans       == 1;

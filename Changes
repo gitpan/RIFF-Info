@@ -1,6 +1,9 @@
 Revision history for Perl extension RIFF::Info.
 
-0.01  Thu Jan 17 21:05:41 2002
+1.02  Moving to a more standard API.  Arguments to the constructor
+      must now be labeled, i.e.
+      new(-file=>$filename,-headersize=>$headersize);
+1.01  Thu Jan 17 21:05:41 2002
 	- original version; created by h2xs 1.20 with options
 		-X RIFF::Info
 
