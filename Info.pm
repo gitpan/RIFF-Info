@@ -4,7 +4,7 @@ require 5.005_62;
 use strict;
 use warnings;
 use vars qw($VERSION);
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 #is this reasonable?  big fudge factor here.
 use constant MAX_HEADER_BYTES => 10240;
@@ -72,16 +72,15 @@ sub probe {
   while(!$hdrl_data){
     my $byte;
     sysread($fh,$byte,8) or die $!;
-
-    if($byte =~ /^LIST/){
+    if(substr($byte,0,4) eq 'LIST'){
       sysread($fh,$byte,4) or die $!;
 
-      if($byte =~ /hdrl/){
+      if(substr($byte,0,4) eq 'hdrl'){
         sysread($fh,$hdrl_data,$self->header_size);
-      } elsif($byte =~ /movi/){
+      } elsif($byte eq 'movi'){
         ###
       }
-    } elsif($byte =~ /^idx1/){
+    } elsif($byte eq 'idx1'){
       ###
     }
   }
