@@ -3,166 +3,170 @@ package RIFF::Info;
 require 5.005_62;
 use strict;
 use warnings;
-use vars qw($VERSION);
-$VERSION = '1.03';
+use vars qw($VERSION @ISA);
+$VERSION = '1.04';
+
+use Video::Info;
+
+@ISA = qw(Video::Info);
 
 #is this reasonable?  big fudge factor here.
 use constant MAX_HEADER_BYTES => 10240;
 
+
+##------------------------------------------------------------------------
+## Preloaded methods go here.
+##
+## Notice use of closures and caller() to restrict setting private vars
+## to current class but overloading everything in one sub.  
+##------------------------------------------------------------------------
+for my $field ( qw( type scale vrate vcodec vstreams 
+		    astreams achans arate fps vframes width height ) ) 
+{
+    my $slot    = __PACKAGE__ . "::$field";
+    no strict 'refs';
+
+    *$field = sub { 
+	my $self = shift;
+	my $caller = caller;
+
+	## restrict setting values to our modules
+	if ( ref( $self ) eq $caller && scalar @_ ) {
+	    ## print "Setting $field == $_[0]\n";
+	    $self->{$slot} = shift if @_;
+	}
+	
+	return $self->{$slot} 
+    };
+
+}
+1;
+
+##------------------------------------------------------------------------
+## Override Superclass Constructor
+##------------------------------------------------------------------------
 sub new {
   my $class = shift;
   my %param = @_;
   my $header_size = $param{-headersize} || MAX_HEADER_BYTES;
 
-  my $self = bless {}, $class;
+  my $self = bless { vstreams => 0,
+		     astreams => 0,
+		     @_, }, $class;
+  
   $self->handle($param{-file});
   $self->header_size($header_size);
 
   return $self;
 }
 
+##------------------------------------------------------------------------
+## header_size()
+##
+## Set the header size.  Hrm, should this be in the accessor method
+## closures above?
+##------------------------------------------------------------------------
 sub header_size {
   my($self,$arg) = @_;
   return $self->{header_size} unless defined $arg;
   $self->{header_size} = $arg;
 }
 
-sub handle {
-  my($self,$file) = @_;
-
-  return $self->{handle} unless defined $file;
-
-  open(F,$file) or die "couldn't open $file: $!";
-  $self->{handle} = \*F;
-}
-
-sub type      { return shift->{type} }
-sub scale     { return shift->{scale} }
-sub vrate      { return shift->{vrate} }
-
-sub vcodec    { return shift->{vcodec} }
-sub acodecraw { return shift->{acodec} }
-sub acodec    { my $self = shift; return $self->codec2str($self->{acodec}) }
-
-sub vstreams  { return shift->{vstreams} }
-sub astreams  { return shift->{astreams} }
-
-sub achans    { return shift->{achans} }
-sub arate     { return shift->{arate} }
-
-sub fps       { return shift->{fps} }
-sub vframes   { return shift->{vframes} }
-sub width     { return shift->{width} }
-sub height    { return shift->{height} }
-
-
+##------------------------------------------------------------------------
+## probe()
+##
+## Obtain the filehandle from Video::Info and extract the properties from
+## the RIFF structure.
+##------------------------------------------------------------------------
 sub probe {
   my $self = shift;
-  my $fh = $self->handle;
+  my $fh = $self->handle; ## inherited from Video::Info
 
   my $type;
-  sysread($fh,$type,12) or die $!;
+  sysread($fh,$type,12) or die "Can't read 12 bytes: $!\n";
 
   notRIFF() if( ($type !~ /^(RIFF)/) && ($type !~ /^(AVI) /) );
-  $self->{type} = $1;
+  $self->type( $1 );
 
   #onward
   my $hdrl_data = undef;
 
-  while(!$hdrl_data){
-    my $byte;
-    sysread($fh,$byte,8) or die $!;
-    if(substr($byte,0,4) eq 'LIST'){
-      sysread($fh,$byte,4) or die $!;
-
-      if(substr($byte,0,4) eq 'hdrl'){
-        sysread($fh,$hdrl_data,$self->header_size);
-      } elsif($byte eq 'movi'){
-        ###
+  while ( !$hdrl_data ) {
+      my $byte;
+      sysread($fh,$byte,8) or die $!;
+      if ( substr( $byte, 0, 4 ) eq 'LIST' ) {
+	  sysread( $fh, $byte, 4 ) or die "Couldn't read 4 bytes: $!\n";
+	  
+	  if ( substr( $byte, 0, 4 ) eq 'hdrl' ) {
+	      sysread( $fh, $hdrl_data, $self->header_size );
+	  } elsif ( $byte eq 'movi' ) {
+	      ### noop
+	  }
+      } elsif ( $byte eq 'idx1' ) {
+	  ### noop
       }
-    } elsif($byte eq 'idx1'){
-      ###
-    }
   }
-
+  
   my $last_tag = 0;
-  for(my $i=0 ; $i < length($hdrl_data) ; $i++){
+  for ( my $i=0; $i < length($hdrl_data); $i++ ) {
+      
+      my $t = $i;
+      my $window = substr( $hdrl_data, $t, 4 );
+ 
+     if ( $window eq 'strh' ) {
 
-    my $t = $i;
-    my $window = substr($hdrl_data,$t,4);
-    if($window eq 'strh'){
-
-      $t += 8;
-      $window = substr($hdrl_data,$t,4);
-
-      if($window eq 'vids'){
-        $self->{scale} = unpack("L",substr($hdrl_data,$t+20,4));
-        $self->{vrate}  = unpack("L",substr($hdrl_data,$t+24,4));
-        $self->{fps} = $self->{vrate} / $self->{scale};
-        $self->{vframes} = unpack("L",substr($hdrl_data,$t+32,4));
-        $self->{vstreams}++;
-        $last_tag = 1;
-
-      } elsif($window eq 'auds'){
-        $self->{astreams}++;
-        $last_tag = 2;
-
+	  $t += 8;
+	  $window = substr( $hdrl_data, $t, 4 );
+	  
+	  if ( $window eq 'vids' ) {
+	      $self->scale(unpack("V",substr($hdrl_data,$t+20,4)));
+	      $self->vrate(unpack("V",substr($hdrl_data,$t+24,4)));
+	      $self->fps($self->vrate / $self->scale);
+	      $self->vframes(unpack("V",substr($hdrl_data,$t+32,4)));
+	      $self->vstreams( ($self->vstreams || 0) + 1 );;
+	      
+	      $last_tag = 1;
+	      
+	  } elsif($window eq 'auds') {
+	      $self->astreams( ($self->astreams || 0) + 1);
+	      $last_tag = 2;
+   
+	  }
+      } 
+      elsif ( $window eq 'strf' ) {
+	  
+	  $t += 8;
+	  $window = substr( $hdrl_data, $t, 4 );
+	  
+	  if ( $last_tag == 1 ) {
+	      $self->width(unpack("V",substr($hdrl_data,$t+4,4)));
+	      $self->height(unpack("V",substr($hdrl_data,$t+8,4)));
+	      $self->vcodec(substr($hdrl_data,$t+16,4));
+	      
+	  } elsif( $last_tag == 2 ) {
+	      $self->acodec(unpack("v",substr($hdrl_data,$t,2)));
+	      $self->achans(unpack("v",substr($hdrl_data,$t+2,2)));
+	      $self->arate(unpack("V",substr($hdrl_data,$t+4,4)));
+	      
+	  }
+	  
+	  $last_tag = 0;
       }
-    } elsif($window eq 'strf'){
-
-      $t += 8;
-      $window = substr($hdrl_data,$t,4);
-
-      if($last_tag == 1){
-        $self->{width}      = unpack("L",substr($hdrl_data,$t+4,4));
-        $self->{height}     = unpack("L",substr($hdrl_data,$t+8,4));
-        $self->{vcodec} = substr($hdrl_data,$t+16,4);
-
-      } elsif($last_tag == 2){
-        $self->{acodec}      = unpack("S",substr($hdrl_data,$t,2));
-        $self->{achans}     = unpack("S",substr($hdrl_data,$t+2,2));
-        $self->{arate}      = unpack("L",substr($hdrl_data,$t+4,4));
-
-      }
-
-      $last_tag = 0;
-    }
   }
   return 1;
-}
-
-sub codec2str {
-  my $self = shift;
-  my $numeric = shift;
-
-  my %codec = (
-    1    => 'PCM',
-    2    => 'MS ADPCM',
-    11   => 'IMA ADPCM',
-    31   => 'MS GSM 6.10',
-    32   => 'MS GSM 6.10',
-    50   => 'MPEG Layer 1/2',
-    55   => 'MPEG Layer 3',
-    160  => 'DivX WMA',
-    161  => 'DivX WMA',
-    401  => 'IMC',
-    2000 => 'AC3',
-  );
-
-  return $codec{$numeric} || 'unknown';
 }
 
 sub notRIFF {
   die "not RIFF data";
 }
 
-1;
 __END__
 # Below is stub documentation for your module. You better edit it!
 
 =head1 NAME
 
-RIFF::Info - Probe DivX, AVI, and ASF files for attributes like:
+RIFF::Info - Probe DivX and AVI files for attributes
+like:
 
  -video codec
  -audio codec
@@ -181,12 +185,14 @@ and more!
   $video = RIFF::Info->new(-file=>$filename);                          #like this
   $video = RIFF::Info->new(-file=>$filename,-headersize=>$headersize); #or this
 
-  $self->probe;                           #parse the video file
   $video->vcodec;                         #video codec
   $video->acodec;                         #audio codec
   ...
 
 =head1 DESCRIPTION
+
+RIFF stands for Resource Interchange File Format, in case you were wondering.
+The morbidly curious can find out more below in I<REFERENCES>.
 
 =head2 METHODS
 
@@ -195,7 +201,7 @@ RIFF::Info has one constructor, new().  It is called as:
   -headersize => $headersize  #optional RIFF header size to parse
 Returns a RIFF::Info object if the file was opened successfully.
 
-Call probe() on the RIFF::Info object to parse the file.  This
+The RIFF::Info object to parses the file by method probe().  This
 does a series of sysread()s on the file to figure out what the
 properties are.
 
@@ -211,6 +217,7 @@ your file:
  astreams()          number of audio streams
  fps()               frames/second
  height()            frame width in pixels
+ probe()             try to determine filetype based on sysreads()
  scale()             video bitrate
  type()              type of file data.  RIFF or AVI.
  vcodec()            video codec
@@ -223,8 +230,8 @@ your file:
 
 The default header_size() (10K) may not be large enough to 
 successfully extract the video/audio attributes for all RIFF 
-files.  If this module fails you, consider increasing the RIFF 
-header size.  If it still fails, let me know.
+files.  If this module fails you, increase the RIFF header size.
+If it still fails, let me know.
 
 Audio codec name mapping is incomplete.  If you know the name
 that corresponds to an audio codec ID that I don't, tell me.
@@ -233,14 +240,14 @@ that corresponds to an audio codec ID that I don't, tell me.
 
 Allen Day <allenday@ucla.edu>
 Copyright (c) 2002, Allen Day
+License - QPL 1.0
 
-You may enjoy this module under the same terms as Perl itself.
+=head1 REFERENCES
 
-=head1 ACKNOWLEDGMENTS
+Transcode, a linux video stream processing tool:
+  http://www.theorie.physik.uni-goettingen.de/~ostreich/transcode/
 
-This was written with liberal snarfing from transcode, a linux
-video stream processing tool available from:
-
-http://www.theorie.physik.uni-goettingen.de/~ostreich/transcode/
+Microsoft RIFF:
+  http://www.oreilly.com/centers/gff/formats/micriff/
 
 =cut

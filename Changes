@@ -1,5 +1,9 @@
 Revision history for Perl extension RIFF::Info.
 
+1.04  Moved audio codec methods to Video::Info
+
+1.03  Minor internal changes.  No API changes.
+
 1.02  Moving to a more standard API.  Arguments to the constructor
       must now be labeled, i.e.
       new(-file=>$filename,-headersize=>$headersize);

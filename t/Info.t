@@ -14,6 +14,7 @@ BEGIN {
     use Test;
     plan tests => 17 }
 
+print "Loading RIFF::Info...\n";
 use RIFF::Info;
 ok(1);
 
