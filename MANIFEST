@@ -2,5 +2,8 @@ Changes
 Info.pm
 MANIFEST
 Makefile.PL
+Info/AVI.pm
+Info/DivX.pm
+Info/ASF.pm
 t/Info.t
 eg/simpson.avi

@@ -4,7 +4,7 @@ require 5.005_62;
 use strict;
 use warnings;
 use vars qw($VERSION);
-$VERSION = '1.00';
+$VERSION = '1.01';
 
 #is this reasonable?  big fudge factor here.
 use constant MAX_HEADER_BYTES => 10240;
