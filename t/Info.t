@@ -12,7 +12,7 @@ BEGIN {
 	use lib 't';
     }
     use Test;
-    plan tests => 17 }
+    plan tests => 18 }
 
 print "Loading RIFF::Info...\n";
 use RIFF::Info;
@@ -24,7 +24,7 @@ ok $file->probe;
 ok $file->achans       == 1;
 ok $file->acodec       eq 'MS ADPCM';
 ok $file->acodecraw    == 2;
-ok $file->arate        == 22050;
+ok $file->arate        == 89240;
 ok $file->astreams     == 1;
 ok int($file->fps)     == 12;
 ok $file->height       == 180;
@@ -35,4 +35,4 @@ ok $file->vframes      == 349;
 ok $file->vrate        == 1_000_000;
 ok $file->vstreams     == 1;
 ok $file->width        == 240;
-
+ok int($file->duration)== 29;

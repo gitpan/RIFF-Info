@@ -1,5 +1,8 @@
 Revision history for Perl extension RIFF::Info.
 
+1.05  Added duration() method that was missing
+      arate() now returns audio bitrate, it was giving samplerate before
+
 1.04  Moved audio codec methods to Video::Info
 
 1.03  Minor internal changes.  No API changes.

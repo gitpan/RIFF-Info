@@ -4,7 +4,7 @@ require 5.005_62;
 use strict;
 use warnings;
 use vars qw($VERSION @ISA);
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 use Video::Info;
 
@@ -20,7 +20,7 @@ use constant MAX_HEADER_BYTES => 10240;
 ## Notice use of closures and caller() to restrict setting private vars
 ## to current class but overloading everything in one sub.  
 ##------------------------------------------------------------------------
-for my $field ( qw( type scale vrate vcodec vstreams 
+for my $field ( qw( type scale vrate vcodec vstreams duration
 		    astreams achans arate fps vframes width height ) ) 
 {
     my $slot    = __PACKAGE__ . "::$field";
@@ -125,7 +125,9 @@ sub probe {
 	      $self->vframes(unpack("V",substr($hdrl_data,$t+32,4)));
 	      $self->vstreams( ($self->vstreams || 0) + 1 );;
 	      
-	      $last_tag = 1;
+              $self->duration($self->vframes / $self->fps) if $self->fps;
+
+              $last_tag = 1;
 	      
 	  } elsif($window eq 'auds') {
 	      $self->astreams( ($self->astreams || 0) + 1);
@@ -146,7 +148,9 @@ sub probe {
 	  } elsif( $last_tag == 2 ) {
 	      $self->acodec(unpack("v",substr($hdrl_data,$t,2)));
 	      $self->achans(unpack("v",substr($hdrl_data,$t+2,2)));
-	      $self->arate(unpack("V",substr($hdrl_data,$t+4,4)));
+	      $self->arate(
+                           8 * unpack("V",substr($hdrl_data,$t+8,4))
+                          );
 	      
 	  }
 	  

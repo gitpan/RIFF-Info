@@ -4,5 +4,5 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'		=> 'RIFF::Info',
     'VERSION_FROM'	=> 'Info.pm', # finds $VERSION
-    'PREREQ_PM'		=> {Video::Info => 0.01}, # e.g., Module::Name => 1.1
+    'PREREQ_PM'		=> {Video::Info => 0.06}, # e.g., Module::Name => 1.1
 );
