@@ -1,5 +1,8 @@
 Revision history for Perl extension RIFF::Info.
 
+1.07  Added expectedsize() method that returns the expected size of the RIFF
+      file from the RIFF header.  This can be used to determine if you have
+      the entire file (n.tropie).
 1.06  Added afrequency() method for retrieving audio channel sampling rate
       information (Corren Vorwerk)
       No longer using warnings.pm because of problems with ActiveState Perl

@@ -3,7 +3,7 @@ package RIFF::Info;
 require 5.005_62;
 use strict;
 use vars qw($VERSION @ISA);
-$VERSION = '1.06';
+$VERSION = '1.07';
 
 use Video::Info;
 
@@ -63,6 +63,12 @@ sub header_size {
   $self->{header_size} = $arg;
 }
 
+sub expectedsize {
+  my($self,$arg) = @_;
+  return $self->{expectedsize} unless defined $arg;
+  $self->{expectedsize} = $arg;
+}
+
 ##------------------------------------------------------------------------
 ## probe()
 ##
@@ -71,6 +77,7 @@ sub header_size {
 ##------------------------------------------------------------------------
 sub probe {
   my $self = shift;
+
   my $fh = $self->handle; ## inherited from Video::Info
 
   my $type;
@@ -79,6 +86,8 @@ sub probe {
   (warn "probe(): doesn't look like RIFF data" and return 0)
     if( ($type !~ /^(RIFF)/) && ($type !~ /^(AVI) /) );
   $self->type( $1 );
+
+  $self->expectedsize(unpack("V",substr($type,4,4)));
 
   #onward
   my $hdrl_data = undef;
@@ -212,9 +221,13 @@ your file:
  arate()             audio bitrate
  afrequency()        sampling rate of audio streams, in Hertz
  astreams()          number of audio streams
+ filename()          path file used to create object
+ filesize()          size in bytes of filename()
+ expectedsize()      expected size in bytes of filename(),
+                     according to the RIFF header
  fourcc()            RIFF Four Character Code
  fps()               frames/second
- height()            frame width in pixels
+ height()            frame height in pixels
  probe()             try to determine filetype
  scale()             video bitrate
  type()              type of file data.  RIFF or AVI
@@ -222,7 +235,7 @@ your file:
  vframes()           number of frames
  vrate()             video bitrate
  vstreams()          number of video streams
- width()             frame height in pixels
+ width()             frame width in pixels
 
 =head1 BUGS
 
