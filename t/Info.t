@@ -12,7 +12,7 @@ BEGIN {
 	use lib 't';
     }
     use Test;
-    plan tests => 18 }
+    plan tests => 20 }
 
 print "Loading RIFF::Info...\n";
 use RIFF::Info;
@@ -36,3 +36,5 @@ ok $file->vrate        == 1_000_000;
 ok $file->vstreams     == 1;
 ok $file->width        == 240;
 ok int($file->duration)== 29;
+ok $file->fourcc       eq 'cvid';
+ok $file->afrequency   == 22_050;

@@ -1,7 +1,13 @@
 Revision history for Perl extension RIFF::Info.
 
+1.06  Added afrequency() method for retrieving audio channel sampling rate
+      information (Corren Vorwerk)
+      No longer using warnings.pm because of problems with ActiveState Perl
+      (Alex Polomski)
 1.05  Added duration() method that was missing
       arate() now returns audio bitrate, it was giving samplerate before
+      Internal method closures dropped.  Now depend on Video::Info.
+      Added fourcc() method for determining RIFF fourcc value.
 
 1.04  Moved audio codec methods to Video::Info
 

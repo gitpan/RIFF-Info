@@ -2,9 +2,8 @@ package RIFF::Info;
 
 require 5.005_62;
 use strict;
-use warnings;
 use vars qw($VERSION @ISA);
-$VERSION = '1.05';
+$VERSION = '1.06';
 
 use Video::Info;
 
@@ -13,34 +12,26 @@ use Video::Info;
 #is this reasonable?  big fudge factor here.
 use constant MAX_HEADER_BYTES => 10240;
 
-
-##------------------------------------------------------------------------
-## Preloaded methods go here.
-##
-## Notice use of closures and caller() to restrict setting private vars
-## to current class but overloading everything in one sub.  
-##------------------------------------------------------------------------
 for my $field ( qw( type scale vrate vcodec vstreams duration
-		    astreams achans arate fps vframes width height ) ) 
+                    astreams achans arate afrequency width height fourcc) )  #fps vframes
 {
     my $slot    = __PACKAGE__ . "::$field";
     no strict 'refs';
 
     *$field = sub { 
-	my $self = shift;
-	my $caller = caller;
+        my $self = shift;
+        my $caller = caller;
 
-	## restrict setting values to our modules
-	if ( ref( $self ) eq $caller && scalar @_ ) {
-	    ## print "Setting $field == $_[0]\n";
-	    $self->{$slot} = shift if @_;
-	}
-	
-	return $self->{$slot} 
+        ## restrict setting values to our modules
+        if ( ref( $self ) eq $caller && scalar @_ ) {
+            ## print "Setting $field == $_[0]\n";
+            $self->{$slot} = shift if @_;
+        }
+        
+        return $self->{$slot} 
     };
 
 }
-1;
 
 ##------------------------------------------------------------------------
 ## Override Superclass Constructor
@@ -83,9 +74,10 @@ sub probe {
   my $fh = $self->handle; ## inherited from Video::Info
 
   my $type;
-  sysread($fh,$type,12) or die "Can't read 12 bytes: $!\n";
+  sysread($fh,$type,12) or die "probe(): can't read 12 bytes: $!\n";
 
-  notRIFF() if( ($type !~ /^(RIFF)/) && ($type !~ /^(AVI) /) );
+  (warn "probe(): doesn't look like RIFF data" and return 0)
+    if( ($type !~ /^(RIFF)/) && ($type !~ /^(AVI) /) );
   $self->type( $1 );
 
   #onward
@@ -93,9 +85,9 @@ sub probe {
 
   while ( !$hdrl_data ) {
       my $byte;
-      sysread($fh,$byte,8) or die $!;
+      sysread($fh,$byte,8) or die "probe(): can't read 8 bytes: $!";
       if ( substr( $byte, 0, 4 ) eq 'LIST' ) {
-	  sysread( $fh, $byte, 4 ) or die "Couldn't read 4 bytes: $!\n";
+	  sysread( $fh, $byte, 4 ) or die "probe() can't read 4 bytes: $!\n";
 	  
 	  if ( substr( $byte, 0, 4 ) eq 'hdrl' ) {
 	      sysread( $fh, $hdrl_data, $self->header_size );
@@ -119,6 +111,7 @@ sub probe {
 	  $window = substr( $hdrl_data, $t, 4 );
 	  
 	  if ( $window eq 'vids' ) {
+	      $self->fourcc(substr($hdrl_data,$t+4,4));
 	      $self->scale(unpack("V",substr($hdrl_data,$t+20,4)));
 	      $self->vrate(unpack("V",substr($hdrl_data,$t+24,4)));
 	      $self->fps($self->vrate / $self->scale);
@@ -148,6 +141,7 @@ sub probe {
 	  } elsif( $last_tag == 2 ) {
 	      $self->acodec(unpack("v",substr($hdrl_data,$t,2)));
 	      $self->achans(unpack("v",substr($hdrl_data,$t+2,2)));
+	      $self->afrequency(unpack("v",substr($hdrl_data,$t+4,2)));
 	      $self->arate(
                            8 * unpack("V",substr($hdrl_data,$t+8,4))
                           );
@@ -160,9 +154,7 @@ sub probe {
   return 1;
 }
 
-sub notRIFF {
-  die "not RIFF data";
-}
+1;
 
 __END__
 # Below is stub documentation for your module. You better edit it!
@@ -218,12 +210,14 @@ your file:
  acodec()            audio codec
  acodecraw()         audio codec numeric ID
  arate()             audio bitrate
+ afrequency()        sampling rate of audio streams, in Hertz
  astreams()          number of audio streams
+ fourcc()            RIFF Four Character Code
  fps()               frames/second
  height()            frame width in pixels
- probe()             try to determine filetype based on sysreads()
+ probe()             try to determine filetype
  scale()             video bitrate
- type()              type of file data.  RIFF or AVI.
+ type()              type of file data.  RIFF or AVI
  vcodec()            video codec
  vframes()           number of frames
  vrate()             video bitrate
